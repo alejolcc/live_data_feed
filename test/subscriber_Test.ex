@@ -28,7 +28,8 @@ defmodule LiveDataFeed.SubscriberTest do
     LiveDataFeed.Subscriber.subscribe(symbol)
 
     # The test process will now wait for a stock update message.
-    assert_receive {:stock_update, ^symbol, price}, 5000 # Wait up to 5 seconds
+    # Wait up to 5 seconds
+    assert_receive {:stock_update, ^symbol, price}, 5000
     assert is_float(price)
   end
 end

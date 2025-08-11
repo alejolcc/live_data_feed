@@ -41,7 +41,6 @@ defmodule LiveDataFeedTest do
     assert_receive {:stock_update, ^symbol, _price}, 5000
   end
 
-  @tag :wip
   test "multiple clients can subscribe to the same stock" do
     symbol = :TSLA
 
@@ -77,5 +76,31 @@ defmodule LiveDataFeedTest do
 
     # Check that only one Ticker process is running for this symbol.
     assert length(Registry.lookup(LiveDataFeed.TickerRegistry, symbol)) == 1
+  end
+
+  test "recovers from a ticker crash" do
+    symbol = :NFLX
+
+    # Subscribe the test process to the symbol.
+    LiveDataFeed.Subscriber.subscribe(symbol)
+
+    # Allow some time for the subscription to be processed and the ticker to be started.
+    Process.sleep(100)
+
+    # Find the ticker process.
+    [{ticker_pid, _}] = Registry.lookup(LiveDataFeed.TickerRegistry, symbol)
+
+    # Force an update
+    Process.send(ticker_pid, :tick, [])
+    assert_receive {:stock_update, ^symbol, _price}, 5000
+
+    # Kill the ticker process.
+    # The supervisor should restart the ticker automatically.
+    Process.exit(ticker_pid, :kill)
+
+    # Force another update
+    # The client should continue to receive updates.
+    Process.send(ticker_pid, :tick, [])
+    assert_receive {:stock_update, ^symbol, _price}, 5000
   end
 end

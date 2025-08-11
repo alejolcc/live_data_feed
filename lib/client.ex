@@ -35,8 +35,7 @@ defmodule LiveDataFeed.Client do
     # Use the new Subscriber module to handle the subscription logic for this process.
     LiveDataFeed.Subscriber.subscribe(symbol)
     IO.puts("[Client #{inspect(state.id)}] Subscribed to #{symbol}")
-    new_state = %{state |
-      subscriptions: MapSet.put(state.subscriptions, symbol)}
+    new_state = %{state | subscriptions: MapSet.put(state.subscriptions, symbol)}
     {:noreply, new_state}
   end
 
