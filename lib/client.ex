@@ -32,21 +32,12 @@ defmodule LiveDataFeed.Client do
 
   @impl true
   def handle_cast({:subscribe, symbol}, state) do
-    # Register this client process in the SubscriptionRegistry.
-    case Registry.register(LiveDataFeed.SubscriptionRegistry, symbol, []) do
-      {:ok, _pid} ->
-        IO.puts("[Client #{inspect(state.id)}] Subscribed to #{symbol}")
-        # If this is the first time anyone subscribed to this symbol,
-        # start a new Ticker process for it under the supervisor.
-        maybe_start_ticker(symbol)
-
-        new_state = %{state | subscriptions: MapSet.put(state.subscriptions, symbol)}
-        {:noreply, new_state}
-
-      {:error, {:already_registered, _pid}} ->
-        IO.puts("[Client #{inspect(state.id)}] Already subscribed to #{symbol}")
-        {:noreply, state}
-    end
+    # Use the new Subscriber module to handle the subscription logic for this process.
+    LiveDataFeed.Subscriber.subscribe(symbol)
+    IO.puts("[Client #{inspect(state.id)}] Subscribed to #{symbol}")
+    new_state = %{state |
+      subscriptions: MapSet.put(state.subscriptions, symbol)}
+    {:noreply, new_state}
   end
 
   # This handles the broadcast messages from the Ticker.
@@ -54,20 +45,5 @@ defmodule LiveDataFeed.Client do
   def handle_info({:stock_update, symbol, price}, state) do
     IO.puts("[Client #{inspect(state.id)}] UPDATE for #{symbol}: $#{price}")
     {:noreply, state}
-  end
-
-  defp maybe_start_ticker(symbol) do
-    # Check if a ticker for this symbol is already running by looking in the TickerRegistry.
-    case Registry.lookup(LiveDataFeed.TickerRegistry, symbol) do
-      [] ->
-        # No ticker found, so we start one using the DynamicSupervisor.
-        IO.puts("[System] No ticker for #{symbol} found. Starting one...")
-        spec = {LiveDataFeed.Ticker, symbol}
-        DynamicSupervisor.start_child(LiveDataFeed.TickerSupervisor, spec)
-
-      _ ->
-        # Ticker already running.
-        :ok
-    end
   end
 end
